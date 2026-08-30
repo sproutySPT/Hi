@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Gravity Flip</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#050611;color:#fff;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+body{touch-action:none}
+canvas{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+#hud{position:fixed;left:0;right:0;top:0;padding:calc(env(safe-area-inset-top) + 12px) 14px 0;display:flex;justify-content:space-between;align-items:flex-start;pointer-events:none;z-index:4}
+.pill{background:rgba(10,13,31,.56);border:1px solid rgba(255,255,255,.13);backdrop-filter:blur(6px);border-radius:999px;padding:8px 12px;font-weight:900;box-shadow:0 10px 32px rgba(0,0,0,.25)}
+#score{font-size:13px}.tiny{font-size:11px;opacity:.78}
+#topSkin{position:fixed;top:calc(env(safe-area-inset-top) + 58px);left:50%;transform:translateX(-50%);z-index:4;padding:6px 10px;border-radius:999px;background:rgba(9,12,28,.44);border:1px solid rgba(255,255,255,.08);font-size:10px;color:#cfd7ff;pointer-events:none}
+#tip{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 16px);transform:translateX(-50%);padding:9px 13px;border-radius:999px;background:rgba(8,11,24,.5);border:1px solid rgba(255,255,255,.09);font-size:11px;white-space:nowrap;opacity:.86;pointer-events:none;z-index:4}
+#menu{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:10;background:radial-gradient(circle at 50% 28%,rgba(109,86,255,.21),rgba(3,5,14,.83) 52%,rgba(2,2,7,.98) 100%)}
+.card{width:min(90vw,430px);padding:26px 22px 22px;border-radius:30px;background:rgba(10,13,30,.76);border:1px solid rgba(255,255,255,.12);box-shadow:0 30px 120px rgba(0,0,0,.52);text-align:center;backdrop-filter:blur(6px);position:relative;overflow:hidden}
+.card:before{content:"";position:absolute;inset:-1px;background:radial-gradient(circle at 50% -10%,rgba(135,238,255,.16),transparent 38%);pointer-events:none}
+h1{position:relative;margin:0 0 8px;font-size:46px;line-height:.93;letter-spacing:-2px}.accent{color:#8df7ff;text-shadow:0 0 24px rgba(97,234,255,.38)}
+.sub{position:relative;margin:0 0 17px;color:#abb4d3;font-size:13px;line-height:1.55}
+button{position:relative;border:0;border-radius:17px;padding:14px 18px;width:100%;font-size:16px;font-weight:950;color:#051020;background:linear-gradient(135deg,#90f8ff,#9b96ff);box-shadow:0 14px 38px rgba(104,169,255,.25);cursor:pointer}button:active{transform:scale(.985)}
+.hint{position:relative;margin-top:11px;font-size:10px;color:#717b9b}
+#gameover{display:none}
+#collectionBtn{margin-top:9px;background:rgba(255,255,255,.07);color:#eaf1ff;box-shadow:none;border:1px solid rgba(255,255,255,.1)}
+#collection{display:none}
+.collectionTitle{font-size:25px;font-weight:950;margin-bottom:4px}.collectionSub{font-size:11px;color:#8993b5;margin-bottom:14px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;max-height:320px;overflow:auto;padding:2px}
+.skin{padding:10px 7px;border-radius:17px;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.07);text-align:center;cursor:pointer}
+.skin.locked{filter:saturate(.4);opacity:.46}.skin.selected{border-color:rgba(141,247,255,.78);box-shadow:0 0 0 1px rgba(141,247,255,.22),0 0 28px rgba(112,226,255,.11)}
+.preview{height:66px;display:grid;place-items:center}.orb{width:34px;height:34px;border-radius:50%;position:relative;box-shadow:0 0 28px rgba(150,230,255,.38)}.orb:after{content:"";position:absolute;inset:8px;border-radius:50%;background:rgba(255,255,255,.9);filter:blur(6px)}
+.skinName{font-size:10px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.skinReq{font-size:8px;color:#7c86a7;margin-top:3px}
+#toast{position:fixed;left:50%;top:22%;transform:translate(-50%,-50%) scale(.8);padding:11px 16px;border-radius:999px;background:rgba(11,14,31,.72);border:1px solid rgba(255,255,255,.14);backdrop-filter:blur(6px);font-size:12px;font-weight:950;letter-spacing:.3px;opacity:0;z-index:30;pointer-events:none;transition:.24s ease}
+#toast.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud"><div class="pill" id="score">GATE 0</div><div class="pill tiny" id="best">BEST 0</div></div>
+<div id="topSkin">SKIN · NOVA</div>
+<div id="tip">한 번 톡! 중력을 뒤집고 천천히 날아가자 ✨</div>
+<div id="toast"></div>
+<div id="menu">
+  <div class="card" id="startCard">
+    <h1>GRAVITY<br><span class="accent">FLIP</span></h1>
+    <p class="sub">터치 한 번으로 중력을 뒤집어<br>빛나는 게이트를 통과해!</p>
+    <button id="startBtn">START</button>
+    <button id="collectionBtn">✨ 스킨 컬렉션</button>
+    <div class="hint">쉬운 초반 · 점점 빨라지는 후반 · 스킨 해금</div>
+  </div>
+  <div class="card" id="gameover">
+    <h1>CRASHED</h1>
+    <p class="sub" id="resultText">GATE 0</p>
+    <button id="restartBtn">다시 시작</button>
+    <button id="collectionBtn2">✨ 스킨 컬렉션</button>
+  </div>
+  <div class="card" id="collection">
+    <div class="collectionTitle">SKIN VAULT</div>
+    <div class="collectionSub">플레이할수록 새로운 스킨이 해금돼 ✨</div>
+    <div class="grid" id="skinGrid"></div>
+    <button id="closeCollection" style="margin-top:10px">돌아가기</button>
+  </div>
+</div>
+<script>
+(()=>{
+const canvas=document.getElementById('c'),ctx=canvas.getContext('2d');
+const scoreEl=document.getElementById('score'),bestEl=document.getElementById('best'),topSkinEl=document.getElementById('topSkin');
+const menu=document.getElementById('menu'),startCard=document.getElementById('startCard'),gameover=document.getElementById('gameover'),collection=document.getElementById('collection');
+const startBtn=document.getElementById('startBtn'),restartBtn=document.getElementById('restartBtn'),collectionBtn=document.getElementById('collectionBtn'),collectionBtn2=document.getElementById('collectionBtn2'),closeCollection=document.getElementById('closeCollection'),resultText=document.getElementById('resultText'),skinGrid=document.getElementById('skinGrid'),toastEl=document.getElementById('toast');
+let W=innerWidth,H=innerHeight,dpr=Math.min(devicePixelRatio||1,2);
+function resize(){W=innerWidth;H=innerHeight;dpr=Math.min(devicePixelRatio||1,2);canvas.width=W*dpr;canvas.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0)} addEventListener('resize',resize,{passive:true});resize();
+const TAU=Math.PI*2,clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),rand=(a,b)=>a+Math.random()*(b-a);
+const skins=[
+ {id:'nova',name:'NOVA',req:0,a:'#87f7ff',b:'#8b9cff',trail:'#b9fbff',shape:'orb'},
+ {id:'solar',name:'SOLAR',req:5,a:'#ffd36a',b:'#ff7d5c',trail:'#fff0a2',shape:'orb'},
+ {id:'neon',name:'NEON',req:10,a:'#5dffdb',b:'#36a2ff',trail:'#83ffe3',shape:'diamond'},
+ {id:'void',name:'VOID',req:18,a:'#d18cff',b:'#6247ff',trail:'#dbbdff',shape:'ring'},
+ {id:'aurora',name:'AURORA',req:28,a:'#7fffe1',b:'#c7a4ff',trail:'#d5fff5',shape:'ring'},
+ {id:'cyber',name:'CYBER',req:40,a:'#fff27a',b:'#ff49ba',trail:'#fff59a',shape:'diamond'},
+ {id:'galaxy',name:'GALAXY',req:55,a:'#8bc6ff',b:'#d98cff',trail:'#ebc6ff',shape:'orb'},
+ {id:'eclipse',name:'ECLIPSE',req:75,a:'#ffffff',b:'#a4adff',trail:'#fff',shape:'ring'},
+ {id:'cosmic',name:'COSMIC GOD',req:100,a:'#fff',b:'#8cf8ff',trail:'#fff',shape:'star'}
+];
+let unlocked=JSON.parse(localStorage.gravityFlipSkins||'["nova"]');let selected=localStorage.gravityFlipSkin||'nova';
+if(!unlocked.includes('nova'))unlocked.unshift('nova');
+let state='menu',score=0,best=+(localStorage.gravityFlipBest||0),cam=0,last=0,particles=[],stars=[],gates=[],rings=[],shake=0,flash=0,runDistance=0;
+const ship={x:0,y:0,vy:0,r:13,gravity:1,rot:0};
+bestEl.textContent='BEST '+best;
+for(let i=0;i<280;i++)stars.push({x:Math.random()*4200,y:Math.random()*1500,r:Math.random()*1.6+.15,a:Math.random()*.65+.12,p:Math.random()*TAU,z:Math.random()});
+function getSkin(){return skins.find(s=>s.id===selected)||skins[0]}
+function setup(){
+ gates=[];let x=440;
+ for(let i=0;i<120;i++){
+   x+=i<4?rand(230,270):rand(210,275);
+   let difficulty=Math.max(0,i-8),gap=clamp(H*.41-difficulty*.22,188,Math.min(265,H*.42));
+   let center=rand(H*.30,H*.70);
+   if(i<5)gap=Math.min(H*.48,245);
+   gates.push({x,center,gap,w:58,p:Math.random()*TAU,passed:false,near:false});
+ }
+ ship.x=150;ship.y=H*.5;ship.vy=0;ship.gravity=1;ship.rot=0;score=0;cam=0;particles=[];rings=[];shake=0;flash=0;runDistance=0;updateHud();
+}
+function updateHud(){scoreEl.textContent='GATE '+Math.floor(score);bestEl.textContent='BEST '+best;topSkinEl.textContent='SKIN · '+getSkin().name}
+function showMenu(which='start'){
+ menu.style.display='flex';startCard.style.display=which==='start'?'block':'none';gameover.style.display=which==='over'?'block':'none';collection.style.display='none';
+}
+function start(){setup();state='play';menu.style.display='none';last=performance.now(); tipFlash();}
+function end(){if(state!=='play')return;state='over';let s=Math.floor(score);best=Math.max(best,s);localStorage.gravityFlipBest=best;resultText.innerHTML='GATE <b>'+s+'</b><br><span style="font-size:12px;color:#8d96b8">최고 기록: '+best+'</span>';bestEl.textContent='BEST '+best;burst(ship.x,ship.y,45,2.2);rings.push({x:ship.x,y:ship.y,r:10,life:1.0,max:105});flash=.8;shake=8;unlockByScore(s);showMenu('over')}
+startBtn.onclick=start;restartBtn.onclick=start;
+collectionBtn.onclick=()=>{renderSkins();menu.style.display='flex';startCard.style.display='none';gameover.style.display='none';collection.style.display='block'};
+collectionBtn2.onclick=()=>{renderSkins();menu.style.display='flex';startCard.style.display='none';gameover.style.display='none';collection.style.display='block'};
+closeCollection.onclick=()=>showMenu('start');
+function unlockByScore(s){for(const sk of skins){if(s>=sk.req&&!unlocked.includes(sk.id)){unlocked.push(sk.id);localStorage.gravityFlipSkins=JSON.stringify(unlocked);toast('✨ '+sk.name+' 스킨 해금!');}}}
+function renderSkins(){skinGrid.innerHTML='';for(const sk of skins){const own=unlocked.includes(sk.id),el=document.createElement('div');el.className='skin '+(own?'':'locked')+' '+(selected===sk.id?'selected':'');el.innerHTML='<div class="preview"><div class="orb" style="background:linear-gradient(135deg,'+sk.a+','+sk.b+');'+(sk.shape==='ring'?'border:4px solid '+sk.a+';background:transparent;':sk.shape==='diamond'?'transform:rotate(45deg);border-radius:8px;':'')+'"></div></div><div class="skinName">'+sk.name+'</div><div class="skinReq">'+(own?'획득 완료':'GATE '+sk.req)+'</div>';if(own)el.onclick=()=>{selected=sk.id;localStorage.gravityFlipSkin=selected;updateHud();renderSkins();toast('⭐ '+sk.name+' 장착!')};skinGrid.appendChild(el)}}
+function toast(t){toastEl.textContent=t;toastEl.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(()=>toastEl.classList.remove('show'),1450)}
+function tipFlash(){/* intentionally quiet */}
+addEventListener('pointerdown',e=>{if(e.target.closest&&e.target.closest('button,.skin'))return;if(state==='play')flip()},{passive:true});
+function flip(){
+ ship.gravity*=-1;
+ // gentler input: preserve a bit of momentum instead of snapping hard
+ ship.vy += ship.gravity*155;
+ ship.vy=clamp(ship.vy,-370,370);
+ burst(ship.x,ship.y,18,1.15);rings.push({x:ship.x,y:ship.y,r:12,life:.65,max:72});shake=Math.min(7,shake+2);flash=Math.min(.22,flash+.09);
+}
+function burst(x,y,n,m=1){const sk=getSkin();for(let i=0;i<n;i++){let a=Math.random()*TAU,s=rand(30,155)*m;particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:rand(.3,.75),r:rand(1.2,3.6),col:Math.random()<.55?sk.a:sk.trail})}}
+function collectScoreFX(){const sk=getSkin();for(let i=0;i<20;i++){let a=rand(-Math.PI,0),s=rand(35,120);particles.push({x:ship.x,y:ship.y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:rand(.35,.75),r:rand(1.4,3.7),col:sk.trail})}rings.push({x:ship.x,y:ship.y,r:10,life:.85,max:90});shake=Math.min(7,shake+1.2);flash=Math.min(.18,flash+.05)}
+function physics(dt){
+ const speed=215+Math.min(85,score*1.25); ship.x+=speed*dt; runDistance+=speed*dt;
+ // lower gravity and cap = much easier
+ ship.vy += 690*ship.gravity*dt; ship.vy=clamp(ship.vy,-415,415); ship.y+=ship.vy*dt;
+ ship.rot += ((clamp(ship.vy/415,-1,1)*.75)-ship.rot)*Math.min(1,dt*7);
+ for(const gate of gates){
+   if(gate.x+gate.w<ship.x-80)continue;
+   if(gate.x>ship.x+100)break;
+   const top=gate.center-gate.gap/2,bottom=gate.center+gate.gap/2;
+   if(!gate.passed && gate.x+gate.w/2<ship.x){gate.passed=true;score++;collectScoreFX();unlockByScore(Math.floor(score));updateHud();}
+   if(ship.x+ship.r>gate.x && ship.x-ship.r<gate.x+gate.w){
+     const safe=4;
+     if(ship.y-ship.r<top+safe || ship.y+ship.r>bottom-safe)end();
+     else if(!gate.near && (ship.y-top<28 || bottom-ship.y<28)){gate.near=true;burst(ship.x,ship.y,8,.75)}
+   }
+ }
+ // generous boundaries with a small grace zone
+ if(ship.y<-28) {ship.y=-28;ship.vy=90}
+ if(ship.y>H+28) {ship.y=H+28;ship.vy=-90}
+ cam += ((ship.x-W*.29)-cam)*Math.min(1,dt*6);
+ if(Math.random()<dt*33)particles.push({x:ship.x-20,y:ship.y+rand(-6,6),vx:rand(-115,-55),vy:rand(-24,24),life:.34,r:rand(1,2.7),col:getSkin().trail});
+ for(let i=0;i<particles.length;i++){const q=particles[i];q.life-=dt;q.x+=q.vx*dt;q.y+=q.vy*dt;q.vx*=.985;q.vy*=.985;if(q.life<=0){particles.splice(i,1);i--}}
+ for(let i=rings.length-1;i>=0;i--){rings[i].life-=dt;if(rings[i].life<=0)rings.splice(i,1)}
+ shake*=.9;flash*=.9;
+}
+function drawBg(t){
+ const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#060817');g.addColorStop(.5,'#050617');g.addColorStop(1,'#02030a');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+ for(const s of stars){let x=((s.x-cam*(.08+s.z*.18))%4200+4200)%4200,y=s.y%Math.max(1000,H+150);ctx.globalAlpha=s.a*(.65+.35*Math.sin(t*.001+s.p));ctx.fillStyle=s.z>.78?'#b5c9ff':'#fff';ctx.beginPath();ctx.arc(x,y,s.r,0,TAU);ctx.fill()}
+ // distant nebulae
+ for(let i=0;i<4;i++){let x=(i*780-cam*.025)%(W+1200)-500,y=100+i*165;let ng=ctx.createRadialGradient(x,y,0,x,y,220);ng.addColorStop(0,'rgba(98,130,255,.08)');ng.addColorStop(1,'rgba(0,0,0,0)');ctx.fillStyle=ng;ctx.beginPath();ctx.arc(x,y,220,0,TAU);ctx.fill()}
+ ctx.globalAlpha=1;
+}
+function drawGate(g,t){
+ const x=g.x-cam,y=g.center,top=y-g.gap/2,bottom=y+g.gap/2;if(x>W+100||x+g.w<-100)return;ctx.save();
+ const pulse=.75+.18*Math.sin(t*.004+g.p);const glow=ctx.createRadialGradient(x+g.w/2,y,10,x+g.w/2,y,175);glow.addColorStop(0,'rgba(102,220,255,.16)');glow.addColorStop(1,'rgba(0,0,0,0)');ctx.fillStyle=glow;ctx.beginPath();ctx.arc(x+g.w/2,y,175,0,TAU);ctx.fill();
+ const grd=ctx.createLinearGradient(x,0,x+g.w,0);grd.addColorStop(0,'#17264b');grd.addColorStop(.44,'#52def4');grd.addColorStop(.55,'#b0fbff');grd.addColorStop(1,'#18274d');ctx.fillStyle=grd;
+ ctx.beginPath();ctx.roundRect(x,-24,g.w,top+24,17);ctx.fill();ctx.beginPath();ctx.roundRect(x,bottom,g.w,H-bottom+24,17);ctx.fill();
+ ctx.globalAlpha=.32+.18*pulse;ctx.fillStyle='#fff';ctx.fillRect(x+8,top-9,g.w-16,5);ctx.fillRect(x+8,bottom+4,g.w-16,5);ctx.globalAlpha=1;
+ ctx.translate(x+g.w/2,y);ctx.rotate(t*.0018+g.p);ctx.strokeStyle='rgba(175,252,255,.75)';ctx.lineWidth=2;ctx.shadowColor='#7ef4ff';ctx.shadowBlur = 8;ctx.beginPath();ctx.arc(0,0,12+pulse*2,0,TAU);ctx.stroke();ctx.beginPath();ctx.moveTo(-16,0);ctx.lineTo(16,0);ctx.moveTo(0,-16);ctx.lineTo(0,16);ctx.stroke();ctx.restore();
+}
+function drawRings(){for(const q of rings){let a=q.life/.9;ctx.save();ctx.globalAlpha=Math.max(0,a)*.7;ctx.strokeStyle=getSkin().a;ctx.shadowColor=getSkin().a;ctx.shadowBlur = 8;ctx.lineWidth=3;ctx.beginPath();ctx.arc(q.x-cam,q.y,q.r+(1-a)*q.max,0,TAU);ctx.stroke();ctx.restore()}ctx.globalAlpha=1}
+function drawParticles(){for(const q of particles){ctx.globalAlpha=Math.max(0,Math.min(1,q.life*2.3));ctx.fillStyle=q.col||getSkin().trail;ctx.shadowColor=q.col||getSkin().trail;ctx.shadowBlur = 8;ctx.beginPath();ctx.arc(q.x-cam,q.y,q.r,0,TAU);ctx.fill()}ctx.shadowBlur = 8;ctx.globalAlpha=1}
+function drawShip(){
+ const sk=getSkin(),x=ship.x-cam,y=ship.y;ctx.save();ctx.translate(x,y);ctx.rotate(ship.rot);
+ ctx.restore();
+ // custom glow without color conversion
+ ctx.save();ctx.translate(x,y);ctx.rotate(ship.rot);ctx.shadowColor=sk.a;ctx.shadowBlur = 8;
+ ctx.fillStyle=sk.a;ctx.beginPath();ctx.arc(0,0,9,0,TAU);ctx.fill();ctx.shadowBlur = 8;
+ if(sk.shape==='diamond'){ctx.rotate(Math.PI/4);ctx.fillStyle=sk.a;ctx.beginPath();ctx.roundRect(-12,-12,24,24,6);ctx.fill()}
+ else if(sk.shape==='ring'){ctx.strokeStyle=sk.a;ctx.lineWidth=5;ctx.beginPath();ctx.arc(0,0,12,0,TAU);ctx.stroke();ctx.fillStyle=sk.b;ctx.beginPath();ctx.arc(0,0,5,0,TAU);ctx.fill()}
+ else if(sk.shape==='star'){ctx.fillStyle=sk.a;ctx.beginPath();for(let i=0;i<10;i++){let a=-Math.PI/2+i*Math.PI/5,r=i%2?7:15;ctx.lineTo(Math.cos(a)*r,Math.sin(a)*r)}ctx.closePath();ctx.fill()}
+ else{const grd=ctx.createLinearGradient(-14,-9,14,9);grd.addColorStop(0,sk.a);grd.addColorStop(1,sk.b);ctx.fillStyle=grd;ctx.beginPath();ctx.moveTo(16,0);ctx.quadraticCurveTo(6,-13,-8,-9);ctx.lineTo(-15,0);ctx.lineTo(-8,9);ctx.quadraticCurveTo(6,13,16,0);ctx.fill();ctx.fillStyle='#efffff';ctx.beginPath();ctx.arc(2,0,4.5,0,TAU);ctx.fill()}
+ ctx.globalAlpha=.75;ctx.fillStyle=sk.trail;ctx.beginPath();ctx.moveTo(-10,0);ctx.lineTo(-29,-6);ctx.lineTo(-20,0);ctx.lineTo(-29,6);ctx.closePath();ctx.fill();ctx.globalAlpha=1;ctx.restore();
+}
+function draw(t){
+ ctx.save(); if(shake>0)ctx.translate(rand(-shake,shake),rand(-shake,shake));
+ drawBg(t);for(const g of gates)drawGate(g,t);drawRings();drawParticles();drawShip();ctx.restore();
+ if(flash>.01){ctx.fillStyle='rgba(210,245,255,'+flash*.38+')';ctx.fillRect(0,0,W,H)}
+}
+function loop(now){const dt=Math.min(.033,(now-last)/1000||.016);last=now;if(state==='play')physics(dt);draw(now);requestAnimationFrame(loop)}
+updateHud();renderSkins();requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
